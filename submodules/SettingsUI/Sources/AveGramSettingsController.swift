@@ -284,8 +284,6 @@ private func aveGramSettingsEntries(settings: AveGramSettings) -> [AveGramSettin
     entries.append(.toggle(.fakeGifts, settings.fakeGifts))
     entries.append(.amount(.stars, String(settings.fakeStarsBalance)))
     entries.append(.amount(.ton, formatTonLabel(settings.fakeTonBalance)))
-    entries.append(.action(.upgrade))
-    entries.append(.action(.craft))
     entries.append(.action(.clearGifts))
     entries.append(.premiumFooter)
 

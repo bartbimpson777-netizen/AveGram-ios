@@ -193,7 +193,7 @@ public func buyStarGiftImpl(
                     return settings
                 }).start()
 
-                AveGramLocalGifts.shared.add(gift: .unique(uniqueGift), convertStars: nil)
+                AveGramLocalGifts.shared.add(gift: .unique(uniqueGift), convertStars: nil, ownerPeerId: context.account.peerId)
 
                 HapticFeedback().success()
                 updateProgress(false)

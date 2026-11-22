@@ -2360,7 +2360,7 @@ private final class GiftViewSheetContent: CombinedComponent {
         }
         
         private func fetchUpgradeForm() {
-            guard let reference = self.subject.arguments?.reference else {
+            guard let reference = self.subject.arguments?.reference, !AveGramLocalGifts.isLocal(reference: reference) else {
                 return
             }
             self.upgradeForm = nil
@@ -2782,7 +2782,37 @@ private final class GiftViewSheetContent: CombinedComponent {
                 })
             }
             
-            if let upgradeStars = arguments.upgradeStars, upgradeStars > 0 {
+            if AveGramLocalGifts.isLocal(reference: arguments.reference) {
+                // AveGram: a locally owned gift is upgraded with fake Stars, nothing goes to the server.
+                var localPrice: Int64 = self.effectiveUpgradePrice?.stars ?? 0
+                if localPrice == 0, case let .generic(generic) = arguments.gift {
+                    localPrice = generic.upgradeStars ?? 0
+                }
+                let price = localPrice
+                let _ = (self.context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.aveGramSettings])
+                |> take(1)
+                |> deliverOnMainQueue).start(next: { [weak self] sharedData in
+                    guard let self else {
+                        return
+                    }
+                    let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.aveGramSettings]?.get(AveGramSettings.self) ?? AveGramSettings.defaultSettings
+                    if settings.fakeStars {
+                        if settings.fakeStarsBalance < price {
+                            let presentationData = self.context.sharedContext.currentPresentationData.with { $0 }
+                            if let controller = self.getController() {
+                                controller.present(textAlertController(context: self.context, title: nil, text: "Недостаточно виртуальных звёзд. Увеличьте баланс в настройках AveGram.", actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})], parseMarkdown: false), in: .window(.root))
+                            }
+                            return
+                        }
+                        let _ = updateAveGramSettingsInteractively(accountManager: self.context.sharedContext.accountManager, { settings in
+                            var settings = settings
+                            settings.fakeStarsBalance = max(0, settings.fakeStarsBalance - price)
+                            return settings
+                        }).start()
+                    }
+                    proceed(nil)
+                })
+            } else if let upgradeStars = arguments.upgradeStars, upgradeStars > 0 {
                 proceed(nil)
             } else if let upgradeForm = self.upgradeForm, let price = upgradeForm.invoice.prices.first?.amount {
                 if starsState.balance < StarsAmount(value: price, nanos: 0) {

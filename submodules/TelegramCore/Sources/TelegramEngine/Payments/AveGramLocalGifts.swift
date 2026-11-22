@@ -63,10 +63,25 @@ public final class AveGramLocalGifts {
         self.updatedPipe.putNext(Void())
     }
 
-    private static func makeEntry(gift: StarGift, convertStars: Int64?) -> Entry {
+    public static func isLocal(reference: StarGiftReference?) -> Bool {
+        if let reference, case let .peer(_, id) = reference {
+            return id < 0
+        }
+        return false
+    }
+
+    private static func makeEntry(gift: StarGift, convertStars: Int64?, ownerPeerId: EnginePeer.Id) -> Entry {
+        var canUpgrade = false
+        var canCraftAt: Int32?
+        switch gift {
+        case let .generic(generic):
+            canUpgrade = generic.upgradeStars != nil
+        case .unique:
+            canCraftAt = Int32(Date().timeIntervalSince1970) - 1
+        }
         return ProfileGiftsContext.State.StarGift(
             gift: gift,
-            reference: nil,
+            reference: .peer(peerId: ownerPeerId, id: -Int64.random(in: 1 ... Int64.max / 4)),
             fromPeer: nil,
             date: Int32(Date().timeIntervalSince1970),
             text: nil,
@@ -75,7 +90,7 @@ public final class AveGramLocalGifts {
             savedToProfile: true,
             pinnedToTop: false,
             convertStars: convertStars,
-            canUpgrade: false,
+            canUpgrade: canUpgrade,
             canExportDate: nil,
             upgradeStars: nil,
             transferStars: nil,
@@ -87,7 +102,7 @@ public final class AveGramLocalGifts {
             dropOriginalDetailsStars: nil,
             number: nil,
             isRefunded: false,
-            canCraftAt: nil
+            canCraftAt: canCraftAt
         )
     }
 
@@ -119,8 +134,8 @@ public final class AveGramLocalGifts {
     }
 
     /// Adds a gift as if it had just been received, newest first.
-    public func add(gift: StarGift, convertStars: Int64?) {
-        let entry = AveGramLocalGifts.makeEntry(gift: gift, convertStars: convertStars)
+    public func add(gift: StarGift, convertStars: Int64?, ownerPeerId: EnginePeer.Id) {
+        let entry = AveGramLocalGifts.makeEntry(gift: gift, convertStars: convertStars, ownerPeerId: ownerPeerId)
         self.apply { current in
             return [entry] + current
         }
@@ -179,7 +194,7 @@ public final class AveGramLocalGifts {
                     }
                     return false
                 }) {
-                    current[index] = AveGramLocalGifts.makeEntry(gift: .unique(unique), convertStars: nil)
+                    current[index] = AveGramLocalGifts.makeEntry(gift: .unique(unique), convertStars: nil, ownerPeerId: ownerPeerId)
                 }
                 return current
             }
@@ -236,12 +251,108 @@ public final class AveGramLocalGifts {
         let unique = AveGramLocalGifts.makeUniqueGift(base: source, giftId: source.giftId, title: source.title, attributes: [craftedModel, pattern, backdrop], ownerPeerId: ownerPeerId)
         let removed = Set(inputIndices)
         self.apply { current in
-            var result: [Entry] = [AveGramLocalGifts.makeEntry(gift: .unique(unique), convertStars: nil)]
+            var result: [Entry] = [AveGramLocalGifts.makeEntry(gift: .unique(unique), convertStars: nil, ownerPeerId: ownerPeerId)]
             for (index, entry) in current.enumerated() where !removed.contains(index) {
                 result.append(entry)
             }
             return result
         }
         return true
+    }
+
+    private func gift(for reference: StarGiftReference) -> Entry? {
+        return self.current.first(where: { $0.reference == reference })
+    }
+
+    /// Vanilla upgrade for a local gift (no server, no payment): replaces it with a unique gift whose
+    /// attributes come from Telegram's upgrade preview of the same gift.
+    func upgrade(engine: TelegramEngine, reference: StarGiftReference, ownerPeerId: EnginePeer.Id) -> Signal<Entry, UpgradeStarGiftError> {
+        guard let entry = self.gift(for: reference), case let .generic(baseGift) = entry.gift else {
+            return .fail(.generic)
+        }
+        return engine.payments.starGiftUpgradePreview(giftId: baseGift.id)
+        |> take(1)
+        |> castError(UpgradeStarGiftError.self)
+        |> mapToSignal { [weak self] preview -> Signal<Entry, UpgradeStarGiftError> in
+            guard let self, let preview else {
+                return .fail(.generic)
+            }
+            var models: [StarGift.UniqueGift.Attribute] = []
+            var patterns: [StarGift.UniqueGift.Attribute] = []
+            var backdrops: [StarGift.UniqueGift.Attribute] = []
+            for attribute in preview.attributes {
+                switch attribute {
+                case .model:
+                    models.append(attribute)
+                case .pattern:
+                    patterns.append(attribute)
+                case .backdrop:
+                    backdrops.append(attribute)
+                default:
+                    break
+                }
+            }
+            guard let model = models.randomElement(), let pattern = patterns.randomElement(), let backdrop = backdrops.randomElement() else {
+                return .fail(.generic)
+            }
+            let unique = AveGramLocalGifts.makeUniqueGift(base: nil, giftId: baseGift.id, title: baseGift.title ?? "Gift", attributes: [model, pattern, backdrop], ownerPeerId: ownerPeerId)
+            let newEntry = AveGramLocalGifts.makeEntry(gift: .unique(unique), convertStars: nil, ownerPeerId: ownerPeerId)
+            self.apply { current in
+                var current = current
+                if let index = current.firstIndex(where: { $0.reference == reference }) {
+                    current[index] = newEntry
+                }
+                return current
+            }
+            return .single(newEntry)
+        }
+    }
+
+    /// Vanilla craft for local gifts: removes the inputs and adds one crafted unique gift.
+    /// The failure chance shown in the UI is not simulated: crafting always succeeds.
+    func craft(references: [StarGiftReference], ownerPeerId: EnginePeer.Id) -> Signal<Entry, CraftStarGiftError> {
+        var inputs: [StarGift.UniqueGift] = []
+        for reference in references {
+            guard let entry = self.gift(for: reference), case let .unique(unique) = entry.gift else {
+                return .fail(.generic)
+            }
+            inputs.append(unique)
+        }
+        guard inputs.count >= 2 else {
+            return .fail(.generic)
+        }
+        func pick(_ matches: (StarGift.UniqueGift.Attribute) -> Bool) -> StarGift.UniqueGift.Attribute? {
+            var candidates: [StarGift.UniqueGift.Attribute] = []
+            for input in inputs {
+                for attribute in input.attributes where matches(attribute) {
+                    candidates.append(attribute)
+                }
+            }
+            return candidates.randomElement()
+        }
+        guard
+            let model = pick({ if case .model = $0 { return true } else { return false } }),
+            let pattern = pick({ if case .pattern = $0 { return true } else { return false } }),
+            let backdrop = pick({ if case .backdrop = $0 { return true } else { return false } }),
+            let source = inputs.randomElement()
+        else {
+            return .fail(.generic)
+        }
+        var craftedModel = model
+        if case let .model(name, file, rarity, _) = model {
+            craftedModel = .model(name: name, file: file, rarity: rarity, crafted: true)
+        }
+        let unique = AveGramLocalGifts.makeUniqueGift(base: source, giftId: source.giftId, title: source.title, attributes: [craftedModel, pattern, backdrop], ownerPeerId: ownerPeerId)
+        let newEntry = AveGramLocalGifts.makeEntry(gift: .unique(unique), convertStars: nil, ownerPeerId: ownerPeerId)
+        let removed = Set(references)
+        self.apply { current in
+            return [newEntry] + current.filter { entry in
+                if let reference = entry.reference {
+                    return !removed.contains(reference)
+                }
+                return true
+            }
+        }
+        return .single(newEntry)
     }
 }

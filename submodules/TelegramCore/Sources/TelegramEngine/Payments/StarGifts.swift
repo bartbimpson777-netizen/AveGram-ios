@@ -1684,6 +1684,9 @@ func _internal_transferStarGift(account: Account, prepaid: Bool, reference: Star
 }
 
 func _internal_upgradeStarGift(account: Account, formId: Int64?, reference: StarGiftReference, keepOriginalInfo: Bool) -> Signal<ProfileGiftsContext.State.StarGift, UpgradeStarGiftError> {
+    if AveGramLocalGifts.isLocal(reference: reference) {
+        return AveGramLocalGifts.shared.upgrade(engine: TelegramEngine(account: account), reference: reference, ownerPeerId: account.peerId)
+    }
     let signal: Signal<ProfileGiftsContext.State.StarGift, UpgradeStarGiftError>
     if let formId {
         let source: BotPaymentInvoiceSource = .starGiftUpgrade(keepOriginalInfo: keepOriginalInfo, reference: reference)
@@ -3490,9 +3493,23 @@ private final class CraftGiftsContextImpl {
     }
 
     private func pushState() {
+        var gifts = self.gifts
+        var count = self.count
+        if AveGramRuntime.fakeGifts {
+            // AveGram: locally owned unique gifts of the same collection can be crafted too.
+            let giftId = self.giftId
+            let local = AveGramLocalGifts.shared.current.filter { entry in
+                if case let .unique(unique) = entry.gift {
+                    return unique.giftId == giftId
+                }
+                return false
+            }
+            gifts = local + gifts
+            count += Int32(local.count)
+        }
         let state = CraftGiftsContext.State(
-            gifts: self.gifts,
-            count: self.count,
+            gifts: gifts,
+            count: count,
             dataState: self.dataState
         )
         self._state = state
@@ -3590,6 +3607,9 @@ public enum CraftStarGiftError {
 }
 
 func _internal_craftStarGift(account: Account, references: [StarGiftReference]) -> Signal<ProfileGiftsContext.State.StarGift, CraftStarGiftError> {
+    if !references.isEmpty && references.allSatisfy({ AveGramLocalGifts.isLocal(reference: $0) }) {
+        return AveGramLocalGifts.shared.craft(references: references, ownerPeerId: account.peerId)
+    }
     return account.postbox.transaction { transaction -> [Api.InputSavedStarGift] in
         return references.compactMap { $0.apiStarGiftReference(transaction: transaction) }
     }

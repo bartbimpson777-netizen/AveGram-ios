@@ -564,7 +564,7 @@ private final class GiftSetupScreenComponent: Component {
                             return settings
                         }).start()
                     }
-                    AveGramLocalGifts.shared.add(gift: .generic(localGift), convertStars: localGift.convertStars)
+                    AveGramLocalGifts.shared.add(gift: .generic(localGift), convertStars: localGift.convertStars, ownerPeerId: context.account.peerId)
                     completion?()
                     controller.dismiss()
                 })
