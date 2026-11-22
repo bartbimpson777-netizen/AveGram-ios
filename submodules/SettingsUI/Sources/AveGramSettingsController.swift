@@ -101,6 +101,7 @@ private enum AveGramToggle: Int32 {
 private enum AveGramAmount {
     case stars
     case ton
+    case profileColor
 }
 
 private enum AveGramSection: Int32 {
@@ -135,7 +136,12 @@ private enum AveGramSettingsEntry: ItemListNodeEntry {
         switch self {
         case .messagesHeader, .messagesFooter:
             return AveGramSection.messages.rawValue
-        case .premiumHeader, .premiumFooter, .amount:
+        case let .amount(amount, _):
+            if case .profileColor = amount {
+                return AveGramSection.profile.rawValue
+            }
+            return AveGramSection.premium.rawValue
+        case .premiumHeader, .premiumFooter:
             return AveGramSection.premium.rawValue
         case .profileHeader, .profileFooter:
             return AveGramSection.profile.rawValue
@@ -165,6 +171,8 @@ private enum AveGramSettingsEntry: ItemListNodeEntry {
                 return 160
             case .ton:
                 return 161
+            case .profileColor:
+                return 261
             }
         case .premiumFooter:
             return 199
@@ -214,6 +222,8 @@ private enum AveGramSettingsEntry: ItemListNodeEntry {
                 title = "Сумма звёзд"
             case .ton:
                 title = "Сумма TON"
+            case .profileColor:
+                title = "Цвет фона профиля (0–20)"
             }
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: nil, title: title, label: label, labelStyle: .text, sectionId: self.section, style: .blocks, disclosureStyle: .arrow, action: {
                 arguments.editAmount(amount)
@@ -248,6 +258,7 @@ private func aveGramSettingsEntries(settings: AveGramSettings) -> [AveGramSettin
     entries.append(.toggle(.animatedAvatars, settings.animatedAvatars))
     entries.append(.toggle(.profileSound, settings.profileSound))
     entries.append(.toggle(.modBadges, settings.modBadges))
+    entries.append(.amount(.profileColor, String(settings.profileColorIndex)))
     entries.append(.profileFooter)
 
     return entries
@@ -281,6 +292,24 @@ public func aveGramSettingsController(context: AccountContext) -> ViewController
                         let _ = updateAveGramSettingsInteractively(accountManager: context.sharedContext.accountManager, { settings in
                             var settings = settings
                             settings.fakeStarsBalance = stars
+                            return settings
+                        }).start()
+                    }
+                ))
+            case .profileColor:
+                presentImpl?(promptController(
+                    context: context,
+                    text: "Цвет фона профиля",
+                    value: String(currentSettings.profileColorIndex),
+                    placeholder: "Число от 0 до 20",
+                    characterLimit: 2,
+                    apply: { value in
+                        guard let value, let index = Int32(value.trimmingCharacters(in: .whitespacesAndNewlines)), index >= 0, index <= 20 else {
+                            return
+                        }
+                        let _ = updateAveGramSettingsInteractively(accountManager: context.sharedContext.accountManager, { settings in
+                            var settings = settings
+                            settings.profileColorIndex = index
                             return settings
                         }).start()
                     }

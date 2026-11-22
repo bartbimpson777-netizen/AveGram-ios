@@ -14,6 +14,8 @@ public struct AveGramSettings: Codable, Equatable {
     public var fakeTonBalance: Int64
     public var fakeGifts: Bool
     public var profileBackground: Bool
+    /// Index into the Telegram profile colour palette (0...20).
+    public var profileColorIndex: Int32
     public var profileEffects: Bool
     public var animatedAvatars: Bool
     public var profileSound: Bool
@@ -29,6 +31,7 @@ public struct AveGramSettings: Codable, Equatable {
             fakeTonBalance: 10_000_000_000,
             fakeGifts: false,
             profileBackground: false,
+            profileColorIndex: 5,
             profileEffects: false,
             animatedAvatars: false,
             profileSound: false,
@@ -45,6 +48,7 @@ public struct AveGramSettings: Codable, Equatable {
         fakeTonBalance: Int64,
         fakeGifts: Bool,
         profileBackground: Bool,
+        profileColorIndex: Int32,
         profileEffects: Bool,
         animatedAvatars: Bool,
         profileSound: Bool,
@@ -58,6 +62,7 @@ public struct AveGramSettings: Codable, Equatable {
         self.fakeTonBalance = fakeTonBalance
         self.fakeGifts = fakeGifts
         self.profileBackground = profileBackground
+        self.profileColorIndex = profileColorIndex
         self.profileEffects = profileEffects
         self.animatedAvatars = animatedAvatars
         self.profileSound = profileSound
@@ -76,6 +81,7 @@ public struct AveGramSettings: Codable, Equatable {
         self.fakeTonBalance = try container.decodeIfPresent(Int64.self, forKey: "fakeTonBalance") ?? defaults.fakeTonBalance
         self.fakeGifts = try container.decodeIfPresent(Bool.self, forKey: "fakeGifts") ?? defaults.fakeGifts
         self.profileBackground = try container.decodeIfPresent(Bool.self, forKey: "profileBackground") ?? defaults.profileBackground
+        self.profileColorIndex = try container.decodeIfPresent(Int32.self, forKey: "profileColorIndex") ?? defaults.profileColorIndex
         self.profileEffects = try container.decodeIfPresent(Bool.self, forKey: "profileEffects") ?? defaults.profileEffects
         self.animatedAvatars = try container.decodeIfPresent(Bool.self, forKey: "animatedAvatars") ?? defaults.animatedAvatars
         self.profileSound = try container.decodeIfPresent(Bool.self, forKey: "profileSound") ?? defaults.profileSound
@@ -93,6 +99,7 @@ public struct AveGramSettings: Codable, Equatable {
         try container.encode(self.fakeTonBalance, forKey: "fakeTonBalance")
         try container.encode(self.fakeGifts, forKey: "fakeGifts")
         try container.encode(self.profileBackground, forKey: "profileBackground")
+        try container.encode(self.profileColorIndex, forKey: "profileColorIndex")
         try container.encode(self.profileEffects, forKey: "profileEffects")
         try container.encode(self.animatedAvatars, forKey: "animatedAvatars")
         try container.encode(self.profileSound, forKey: "profileSound")

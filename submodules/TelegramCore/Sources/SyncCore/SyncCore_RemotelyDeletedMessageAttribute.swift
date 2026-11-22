@@ -68,6 +68,18 @@ public enum AveGramRuntime {
         }
     }
 
+    private static let profileColorValue = Atomic<Int32>(value: -1)
+
+    /// Profile background colour index of the own profile, or -1 when the option is off.
+    public static var profileColorIndex: Int32 {
+        get {
+            return profileColorValue.with { $0 }
+        }
+        set {
+            let _ = profileColorValue.modify { _ in newValue }
+        }
+    }
+
     private static let fakeGiftsValue = Atomic<Bool>(value: false)
 
     public static var fakeGifts: Bool {

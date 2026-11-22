@@ -884,6 +884,18 @@ private func contactsPermissionWarning(context: AccountContext) -> Signal<Bool, 
     |> distinctUntilChanged
 }
 
+/// AveGram: applies the locally chosen profile background colour to the own profile.
+private func aveGramStyledProfilePeer(_ peer: Peer?, accountPeerId: EnginePeer.Id) -> EnginePeer? {
+    guard let peer else {
+        return nil
+    }
+    let colorIndex = AveGramRuntime.profileColorIndex
+    if colorIndex >= 0, peer.id == accountPeerId, let user = peer as? TelegramUser {
+        return EnginePeer(user.withUpdatedProfileColor(PeerNameColor(rawValue: colorIndex)))
+    }
+    return EnginePeer(peer)
+}
+
 func peerInfoScreenSettingsData(context: AccountContext, peerId: EnginePeer.Id, accountsAndPeers: Signal<[(AccountContext, EnginePeer, Int32)], NoError>, activeSessionsContextAndCount: Signal<(ActiveSessionsContext, Int, WebSessionsContext)?, NoError>, notificationExceptions: Signal<NotificationExceptionsList?, NoError>, privacySettings: Signal<AccountPrivacySettings?, NoError>, archivedStickerPacks: Signal<[ArchivedStickerPackItem]?, NoError>, hasPassport: Signal<Bool, NoError>, starsContext: StarsContext?, tonContext: StarsContext?) -> Signal<PeerInfoScreenData, NoError> {
     let preferences = context.sharedContext.accountManager.sharedData(keys: [
         SharedDataKeys.proxySettings,
@@ -1125,8 +1137,8 @@ func peerInfoScreenSettingsData(context: AccountContext, peerId: EnginePeer.Id, 
         )
         
         return PeerInfoScreenData(
-            peer: peer.flatMap(EnginePeer.init),
-            chatPeer: peer.flatMap(EnginePeer.init),
+            peer: aveGramStyledProfilePeer(peer, accountPeerId: context.account.peerId),
+            chatPeer: aveGramStyledProfilePeer(peer, accountPeerId: context.account.peerId),
             savedMessagesPeer: nil,
             cachedData: peerView.cachedData,
             firstWelcomeMessageText: nil,
@@ -1803,8 +1815,8 @@ func peerInfoScreenData(
                     }
                     
                     return PeerInfoScreenData(
-                        peer: peer.flatMap(EnginePeer.init),
-                        chatPeer: peerView.peers[peerId].flatMap(EnginePeer.init),
+                        peer: aveGramStyledProfilePeer(peer, accountPeerId: context.account.peerId),
+                        chatPeer: aveGramStyledProfilePeer(peerView.peers[peerId], accountPeerId: context.account.peerId),
                         savedMessagesPeer: savedMessagesPeer,
                         cachedData: peerView.cachedData,
                         firstWelcomeMessageText: nil,

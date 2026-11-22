@@ -514,6 +514,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
             AveGramRuntime.saveDeletedMessages = settings.saveDeletedMessages
             AveGramRuntime.modBadges = settings.modBadges
             AveGramRuntime.fakeGifts = settings.fakeGifts
+            AveGramRuntime.profileColorIndex = settings.profileBackground ? settings.profileColorIndex : -1
         })
 
         self.inAppNotificationSettingsDisposable = (self.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.inAppNotificationSettings])
