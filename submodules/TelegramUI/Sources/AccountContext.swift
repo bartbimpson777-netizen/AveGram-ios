@@ -560,9 +560,19 @@ public final class AccountContextImpl: AccountContext {
             strongSelf.tonGiftStickersPromise.set(.single(stickers))
         })
         
-        self.userLimitsConfigurationDisposable = (self.engine.data.subscribe(TelegramEngine.EngineData.Item.Peer.Peer(id: account.peerId))
-        |> mapToSignal { peer -> Signal<(Bool, EngineConfiguration.UserLimits), NoError> in
-            let isPremium = peer?.isPremium ?? false
+        let aveGramLocalPremium: Signal<Bool, NoError> = sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.aveGramSettings])
+        |> map { sharedData -> Bool in
+            let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.aveGramSettings]?.get(AveGramSettings.self) ?? AveGramSettings.defaultSettings
+            return settings.localPremium
+        }
+        |> distinctUntilChanged
+
+        self.userLimitsConfigurationDisposable = (combineLatest(
+            self.engine.data.subscribe(TelegramEngine.EngineData.Item.Peer.Peer(id: account.peerId)),
+            aveGramLocalPremium
+        )
+        |> mapToSignal { peer, localPremium -> Signal<(Bool, EngineConfiguration.UserLimits), NoError> in
+            let isPremium = (peer?.isPremium ?? false) || localPremium
             return self.engine.data.subscribe(TelegramEngine.EngineData.Item.Configuration.UserLimits(isPremium: isPremium))
             |> map { userLimits in
                 return (isPremium, userLimits)
