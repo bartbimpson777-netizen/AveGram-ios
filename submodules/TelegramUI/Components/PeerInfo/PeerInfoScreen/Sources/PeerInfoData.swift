@@ -998,7 +998,20 @@ func peerInfoScreenSettingsData(context: AccountContext, peerId: EnginePeer.Id, 
     }
     let tonState: Signal<StarsContext.State?, NoError>
     if let tonContext {
-        tonState = tonContext.state
+        tonState = combineLatest(
+            tonContext.state,
+            context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.aveGramSettings])
+        )
+        |> map { state, sharedData -> StarsContext.State? in
+            guard var state else {
+                return nil
+            }
+            let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.aveGramSettings]?.get(AveGramSettings.self) ?? AveGramSettings.defaultSettings
+            if settings.fakeTon {
+                state.balance = StarsAmount(value: settings.fakeTonBalance, nanos: 0)
+            }
+            return state
+        }
     } else {
         tonState = .single(nil)
     }

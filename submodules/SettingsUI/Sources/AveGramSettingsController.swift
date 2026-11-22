@@ -8,11 +8,13 @@ import TelegramUIPreferences
 import ItemListUI
 import PresentationDataUtils
 import AccountContext
+import PromptUI
 
 private enum AveGramToggle: Int32 {
     case saveDeletedMessages = 0
     case localPremium
     case fakeStars
+    case fakeTon
     case fakeGifts
     case profileBackground
     case profileEffects
@@ -28,6 +30,8 @@ private enum AveGramToggle: Int32 {
             return settings.localPremium
         case .fakeStars:
             return settings.fakeStars
+        case .fakeTon:
+            return settings.fakeTon
         case .fakeGifts:
             return settings.fakeGifts
         case .profileBackground:
@@ -51,6 +55,8 @@ private enum AveGramToggle: Int32 {
             settings.localPremium = value
         case .fakeStars:
             settings.fakeStars = value
+        case .fakeTon:
+            settings.fakeTon = value
         case .fakeGifts:
             settings.fakeGifts = value
         case .profileBackground:
@@ -74,6 +80,8 @@ private enum AveGramToggle: Int32 {
             return "Локальный Premium"
         case .fakeStars:
             return "Виртуальные звёзды"
+        case .fakeTon:
+            return "Виртуальные граммы (TON)"
         case .fakeGifts:
             return "Виртуальные подарки"
         case .profileBackground:
@@ -90,6 +98,11 @@ private enum AveGramToggle: Int32 {
     }
 }
 
+private enum AveGramAmount {
+    case stars
+    case ton
+}
+
 private enum AveGramSection: Int32 {
     case messages
     case premium
@@ -98,15 +111,18 @@ private enum AveGramSection: Int32 {
 
 private final class AveGramSettingsControllerArguments {
     let updateToggle: (AveGramToggle, Bool) -> Void
+    let editAmount: (AveGramAmount) -> Void
 
-    init(updateToggle: @escaping (AveGramToggle, Bool) -> Void) {
+    init(updateToggle: @escaping (AveGramToggle, Bool) -> Void, editAmount: @escaping (AveGramAmount) -> Void) {
         self.updateToggle = updateToggle
+        self.editAmount = editAmount
     }
 }
 
 private enum AveGramSettingsEntry: ItemListNodeEntry {
     case messagesHeader
     case toggle(AveGramToggle, Bool)
+    case amount(AveGramAmount, String)
     case messagesFooter
 
     case premiumHeader
@@ -119,7 +135,7 @@ private enum AveGramSettingsEntry: ItemListNodeEntry {
         switch self {
         case .messagesHeader, .messagesFooter:
             return AveGramSection.messages.rawValue
-        case .premiumHeader, .premiumFooter:
+        case .premiumHeader, .premiumFooter, .amount:
             return AveGramSection.premium.rawValue
         case .profileHeader, .profileFooter:
             return AveGramSection.profile.rawValue
@@ -127,7 +143,7 @@ private enum AveGramSettingsEntry: ItemListNodeEntry {
             switch toggle {
             case .saveDeletedMessages:
                 return AveGramSection.messages.rawValue
-            case .localPremium, .fakeStars, .fakeGifts:
+            case .localPremium, .fakeStars, .fakeTon, .fakeGifts:
                 return AveGramSection.premium.rawValue
             case .profileBackground, .profileEffects, .animatedAvatars, .profileSound, .modBadges:
                 return AveGramSection.profile.rawValue
@@ -143,6 +159,13 @@ private enum AveGramSettingsEntry: ItemListNodeEntry {
             return 99
         case .premiumHeader:
             return 100
+        case let .amount(amount, _):
+            switch amount {
+            case .stars:
+                return 160
+            case .ton:
+                return 161
+            }
         case .premiumFooter:
             return 199
         case .profileHeader:
@@ -153,7 +176,7 @@ private enum AveGramSettingsEntry: ItemListNodeEntry {
             switch toggle {
             case .saveDeletedMessages:
                 return 1
-            case .localPremium, .fakeStars, .fakeGifts:
+            case .localPremium, .fakeStars, .fakeTon, .fakeGifts:
                 return 101 + toggle.rawValue
             case .profileBackground, .profileEffects, .animatedAvatars, .profileSound, .modBadges:
                 return 201 + toggle.rawValue
@@ -175,7 +198,7 @@ private enum AveGramSettingsEntry: ItemListNodeEntry {
         case .premiumHeader:
             return ItemListSectionHeaderItem(presentationData: presentationData, text: "PREMIUM, ЗВЁЗДЫ И ПОДАРКИ", sectionId: self.section)
         case .premiumFooter:
-            return ItemListTextItem(presentationData: presentationData, text: .plain("Всё это работает только на вашем устройстве и никому другому не видно."), sectionId: self.section)
+            return ItemListTextItem(presentationData: presentationData, text: .plain("Всё это работает только на вашем устройстве и никому другому не видно. Нажмите на сумму, чтобы изменить её."), sectionId: self.section)
         case .profileHeader:
             return ItemListSectionHeaderItem(presentationData: presentationData, text: "ПРОФИЛЬ", sectionId: self.section)
         case .profileFooter:
@@ -184,8 +207,23 @@ private enum AveGramSettingsEntry: ItemListNodeEntry {
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: toggle.title, value: value, sectionId: self.section, style: .blocks, updated: { value in
                 arguments.updateToggle(toggle, value)
             })
+        case let .amount(amount, label):
+            let title: String
+            switch amount {
+            case .stars:
+                title = "Сумма звёзд"
+            case .ton:
+                title = "Сумма TON"
+            }
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, icon: nil, title: title, label: label, labelStyle: .text, sectionId: self.section, style: .blocks, disclosureStyle: .arrow, action: {
+                arguments.editAmount(amount)
+            })
         }
     }
+}
+
+private func formatTonLabel(_ nanoTon: Int64) -> String {
+    return String(format: "%.2f", Double(nanoTon) / 1_000_000_000.0)
 }
 
 private func aveGramSettingsEntries(settings: AveGramSettings) -> [AveGramSettingsEntry] {
@@ -198,7 +236,10 @@ private func aveGramSettingsEntries(settings: AveGramSettings) -> [AveGramSettin
     entries.append(.premiumHeader)
     entries.append(.toggle(.localPremium, settings.localPremium))
     entries.append(.toggle(.fakeStars, settings.fakeStars))
+    entries.append(.toggle(.fakeTon, settings.fakeTon))
     entries.append(.toggle(.fakeGifts, settings.fakeGifts))
+    entries.append(.amount(.stars, String(settings.fakeStarsBalance)))
+    entries.append(.amount(.ton, formatTonLabel(settings.fakeTonBalance)))
     entries.append(.premiumFooter)
 
     entries.append(.profileHeader)
@@ -213,6 +254,9 @@ private func aveGramSettingsEntries(settings: AveGramSettings) -> [AveGramSettin
 }
 
 public func aveGramSettingsController(context: AccountContext) -> ViewController {
+    var currentSettings = AveGramSettings.defaultSettings
+    var presentImpl: ((ViewController) -> Void)?
+
     let arguments = AveGramSettingsControllerArguments(
         updateToggle: { toggle, value in
             let _ = updateAveGramSettingsInteractively(accountManager: context.sharedContext.accountManager, { settings in
@@ -220,6 +264,51 @@ public func aveGramSettingsController(context: AccountContext) -> ViewController
                 toggle.apply(value, to: &settings)
                 return settings
             }).start()
+        },
+        editAmount: { amount in
+            switch amount {
+            case .stars:
+                presentImpl?(promptController(
+                    context: context,
+                    text: "Баланс звёзд",
+                    value: String(currentSettings.fakeStarsBalance),
+                    placeholder: "Количество звёзд",
+                    characterLimit: 12,
+                    apply: { value in
+                        guard let value, let stars = Int64(value.trimmingCharacters(in: .whitespacesAndNewlines)), stars >= 0 else {
+                            return
+                        }
+                        let _ = updateAveGramSettingsInteractively(accountManager: context.sharedContext.accountManager, { settings in
+                            var settings = settings
+                            settings.fakeStarsBalance = stars
+                            return settings
+                        }).start()
+                    }
+                ))
+            case .ton:
+                presentImpl?(promptController(
+                    context: context,
+                    text: "Баланс TON",
+                    value: formatTonLabel(currentSettings.fakeTonBalance),
+                    placeholder: "Количество TON, например 12.5",
+                    characterLimit: 20,
+                    apply: { value in
+                        guard let value else {
+                            return
+                        }
+                        let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: ".")
+                        guard let decimal = Decimal(string: normalized), decimal >= 0, decimal <= 1_000_000_000 else {
+                            return
+                        }
+                        let nanoTon = NSDecimalNumber(decimal: decimal * 1_000_000_000).int64Value
+                        let _ = updateAveGramSettingsInteractively(accountManager: context.sharedContext.accountManager, { settings in
+                            var settings = settings
+                            settings.fakeTonBalance = nanoTon
+                            return settings
+                        }).start()
+                    }
+                ))
+            }
         }
     )
 
@@ -229,6 +318,7 @@ public func aveGramSettingsController(context: AccountContext) -> ViewController
     )
     |> map { presentationData, sharedData -> (ItemListControllerState, (ItemListNodeState, Any)) in
         let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.aveGramSettings]?.get(AveGramSettings.self) ?? AveGramSettings.defaultSettings
+        currentSettings = settings
 
         let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("AveGram"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
         let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: aveGramSettingsEntries(settings: settings), style: .blocks, animateChanges: true)
@@ -236,5 +326,9 @@ public func aveGramSettingsController(context: AccountContext) -> ViewController
         return (controllerState, (listState, arguments))
     }
 
-    return ItemListController(context: context, state: signal)
+    let controller = ItemListController(context: context, state: signal)
+    presentImpl = { [weak controller] c in
+        controller?.present(c, in: .window(.root))
+    }
+    return controller
 }

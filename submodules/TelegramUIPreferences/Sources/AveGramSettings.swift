@@ -7,7 +7,11 @@ public struct AveGramSettings: Codable, Equatable {
     public var saveDeletedMessages: Bool
     public var localPremium: Bool
     public var fakeStars: Bool
+    /// Whole Stars.
     public var fakeStarsBalance: Int64
+    public var fakeTon: Bool
+    /// In nanoTON (1 TON = 1_000_000_000).
+    public var fakeTonBalance: Int64
     public var fakeGifts: Bool
     public var profileBackground: Bool
     public var profileEffects: Bool
@@ -21,6 +25,8 @@ public struct AveGramSettings: Codable, Equatable {
             localPremium: false,
             fakeStars: false,
             fakeStarsBalance: 10000,
+            fakeTon: false,
+            fakeTonBalance: 10_000_000_000,
             fakeGifts: false,
             profileBackground: false,
             profileEffects: false,
@@ -35,6 +41,8 @@ public struct AveGramSettings: Codable, Equatable {
         localPremium: Bool,
         fakeStars: Bool,
         fakeStarsBalance: Int64,
+        fakeTon: Bool,
+        fakeTonBalance: Int64,
         fakeGifts: Bool,
         profileBackground: Bool,
         profileEffects: Bool,
@@ -46,6 +54,8 @@ public struct AveGramSettings: Codable, Equatable {
         self.localPremium = localPremium
         self.fakeStars = fakeStars
         self.fakeStarsBalance = fakeStarsBalance
+        self.fakeTon = fakeTon
+        self.fakeTonBalance = fakeTonBalance
         self.fakeGifts = fakeGifts
         self.profileBackground = profileBackground
         self.profileEffects = profileEffects
@@ -62,6 +72,8 @@ public struct AveGramSettings: Codable, Equatable {
         self.localPremium = try container.decodeIfPresent(Bool.self, forKey: "localPremium") ?? defaults.localPremium
         self.fakeStars = try container.decodeIfPresent(Bool.self, forKey: "fakeStars") ?? defaults.fakeStars
         self.fakeStarsBalance = try container.decodeIfPresent(Int64.self, forKey: "fakeStarsBalance") ?? defaults.fakeStarsBalance
+        self.fakeTon = try container.decodeIfPresent(Bool.self, forKey: "fakeTon") ?? defaults.fakeTon
+        self.fakeTonBalance = try container.decodeIfPresent(Int64.self, forKey: "fakeTonBalance") ?? defaults.fakeTonBalance
         self.fakeGifts = try container.decodeIfPresent(Bool.self, forKey: "fakeGifts") ?? defaults.fakeGifts
         self.profileBackground = try container.decodeIfPresent(Bool.self, forKey: "profileBackground") ?? defaults.profileBackground
         self.profileEffects = try container.decodeIfPresent(Bool.self, forKey: "profileEffects") ?? defaults.profileEffects
@@ -77,6 +89,8 @@ public struct AveGramSettings: Codable, Equatable {
         try container.encode(self.localPremium, forKey: "localPremium")
         try container.encode(self.fakeStars, forKey: "fakeStars")
         try container.encode(self.fakeStarsBalance, forKey: "fakeStarsBalance")
+        try container.encode(self.fakeTon, forKey: "fakeTon")
+        try container.encode(self.fakeTonBalance, forKey: "fakeTonBalance")
         try container.encode(self.fakeGifts, forKey: "fakeGifts")
         try container.encode(self.profileBackground, forKey: "profileBackground")
         try container.encode(self.profileEffects, forKey: "profileEffects")
