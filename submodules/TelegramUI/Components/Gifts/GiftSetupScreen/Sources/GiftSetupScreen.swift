@@ -542,16 +542,45 @@ private final class GiftSetupScreenComponent: Component {
                 source = .starGift(hideName: self.hideName, includeUpgrade: self.includeUpgrade, peerId: peerId, giftId: starGift.id, text: textInputText.string, entities: entities)
             }
             
+            if AveGramRuntime.fakeGifts, peerId == context.account.peerId, case let .starGift(localGift, _) = component.subject {
+                let localPrice = finalPrice
+                let completion = component.completion
+                let _ = (context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.aveGramSettings])
+                |> take(1)
+                |> deliverOnMainQueue).start(next: { [weak self] sharedData in
+                    guard let self, let controller = self.environment?.controller() else {
+                        return
+                    }
+                    let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.aveGramSettings]?.get(AveGramSettings.self) ?? AveGramSettings.defaultSettings
+                    if settings.fakeStars {
+                        if settings.fakeStarsBalance < localPrice {
+                            let alertController = textAlertController(context: context, title: nil, text: "Недостаточно виртуальных звёзд. Увеличьте баланс в настройках AveGram.", actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})], parseMarkdown: true)
+                            controller.present(alertController, in: .window(.root))
+                            return
+                        }
+                        let _ = updateAveGramSettingsInteractively(accountManager: context.sharedContext.accountManager, { settings in
+                            var settings = settings
+                            settings.fakeStarsBalance = max(0, settings.fakeStarsBalance - localPrice)
+                            return settings
+                        }).start()
+                    }
+                    AveGramLocalGifts.shared.add(gift: .generic(localGift), convertStars: localGift.convertStars)
+                    completion?()
+                    controller.dismiss()
+                })
+                return
+            }
+
             let proceed = { [weak self] in
                 guard let self else {
                     return
                 }
-                
+
                 self.inProgress = true
                 self.state?.updated()
-                
+
                 let completion = component.completion
-                
+
                 let signal = BotCheckoutController.InputData.fetch(context: component.context, source: source)
                 |> `catch` { error -> Signal<BotCheckoutController.InputData, SendBotPaymentFormError> in
                     switch error {

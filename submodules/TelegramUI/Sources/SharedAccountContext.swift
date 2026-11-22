@@ -513,6 +513,7 @@ public final class SharedAccountContextImpl: SharedAccountContext {
             let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.aveGramSettings]?.get(AveGramSettings.self) ?? AveGramSettings.defaultSettings
             AveGramRuntime.saveDeletedMessages = settings.saveDeletedMessages
             AveGramRuntime.modBadges = settings.modBadges
+            AveGramRuntime.fakeGifts = settings.fakeGifts
         })
 
         self.inAppNotificationSettingsDisposable = (self.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.inAppNotificationSettings])

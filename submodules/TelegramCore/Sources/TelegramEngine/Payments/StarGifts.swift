@@ -3138,7 +3138,7 @@ public final class ProfileGiftsContext {
     private let impl: QueueLocalObject<ProfileGiftsContextImpl>
     
     public var state: Signal<ProfileGiftsContext.State, NoError> {
-        return Signal { subscriber in
+        let baseSignal: Signal<ProfileGiftsContext.State, NoError> = Signal { subscriber in
             let disposable = MetaDisposable()
             
             self.impl.with { impl in
@@ -3149,10 +3149,32 @@ public final class ProfileGiftsContext {
             
             return disposable
         }
+        
+        guard self.peerId == self.accountPeerId, self.collectionId == nil, self.initialFilter.contains(.unlimited) else {
+            return baseSignal
+        }
+        // AveGram: locally "bought" gifts are shown on the own profile only.
+        return combineLatest(queue: self.queue, baseSignal, AveGramLocalGifts.shared.updated |> startWith(Void()))
+        |> map { state, _ -> ProfileGiftsContext.State in
+            guard AveGramRuntime.fakeGifts else {
+                return state
+            }
+            let local = AveGramLocalGifts.shared.current
+            if local.isEmpty {
+                return state
+            }
+            var state = state
+            state.gifts = local + state.gifts
+            state.filteredGifts = local + state.filteredGifts
+            state.count = (state.count ?? 0) + Int32(local.count)
+            return state
+        }
     }
     
     public let peerId: EnginePeer.Id
     public let collectionId: Int32?
+    private let accountPeerId: EnginePeer.Id
+    private let initialFilter: ProfileGiftsContext.Filters
     
     public init(
         account: Account,
@@ -3164,6 +3186,8 @@ public final class ProfileGiftsContext {
     ) {
         self.peerId = peerId
         self.collectionId = collectionId
+        self.accountPeerId = account.peerId
+        self.initialFilter = filter
         
         let queue = self.queue
         self.impl = QueueLocalObject(queue: queue, generate: {

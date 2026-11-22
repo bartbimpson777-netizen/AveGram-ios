@@ -67,4 +67,15 @@ public enum AveGramRuntime {
             let _ = modBadgesValue.modify { _ in newValue }
         }
     }
+
+    private static let fakeGiftsValue = Atomic<Bool>(value: false)
+
+    public static var fakeGifts: Bool {
+        get {
+            return fakeGiftsValue.with { $0 }
+        }
+        set {
+            let _ = fakeGiftsValue.modify { _ in newValue }
+        }
+    }
 }
