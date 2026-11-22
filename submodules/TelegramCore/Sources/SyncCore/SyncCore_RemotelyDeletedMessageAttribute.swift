@@ -48,12 +48,23 @@ public extension EngineMessage {
 public enum AveGramRuntime {
     private static let saveDeletedMessagesValue = Atomic<Bool>(value: false)
 
+    private static let modBadgesValue = Atomic<Bool>(value: false)
+
     public static var saveDeletedMessages: Bool {
         get {
             return saveDeletedMessagesValue.with { $0 }
         }
         set {
             let _ = saveDeletedMessagesValue.modify { _ in newValue }
+        }
+    }
+
+    public static var modBadges: Bool {
+        get {
+            return modBadgesValue.with { $0 }
+        }
+        set {
+            let _ = modBadgesValue.modify { _ in newValue }
         }
     }
 }

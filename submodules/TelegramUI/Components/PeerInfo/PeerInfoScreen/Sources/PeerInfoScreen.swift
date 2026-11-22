@@ -11,6 +11,7 @@ import WalletGiftStickerMediaComponent
 import WalletSendScreen
 import TelegramPresentationData
 import TelegramUIPreferences
+import AudioToolbox
 import AvatarNode
 import TelegramStringFormatting
 import PhoneNumberFormat
@@ -6682,6 +6683,8 @@ public final class PeerInfoScreenImpl: ViewController, PeerInfoScreen, KeyShortc
     }
     
     var didAppear: Bool = false
+    private var aveGramSoundDisposable: Disposable?
+    private var aveGramSoundPlayed = false
     
     private var validLayout: (layout: ContainerViewLayout, navigationHeight: CGFloat)?
     
@@ -7059,8 +7062,9 @@ public final class PeerInfoScreenImpl: ViewController, PeerInfoScreen, KeyShortc
         self.presentationDataDisposable?.dispose()
         self.accountsAndPeersDisposable?.dispose()
         self.tabBarItemDisposable?.dispose()
+        self.aveGramSoundDisposable?.dispose()
     }
-    
+
     override public func loadDisplayNode() {
         var initialPaneKey: PeerInfoPaneKey?
         if self.switchToRecommendedChannels {
@@ -7305,9 +7309,21 @@ public final class PeerInfoScreenImpl: ViewController, PeerInfoScreen, KeyShortc
         
         self.controllerNode.refreshHasPersonalChannelsIfNeeded()
         self.controllerNode.initialExpandPanes = false
-        
+
         if self.isSettings {
             preheatQrCode()
+        }
+
+        if !self.aveGramSoundPlayed && !self.isSettings {
+            self.aveGramSoundPlayed = true
+            self.aveGramSoundDisposable = (self.context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.aveGramSettings])
+            |> take(1)
+            |> deliverOnMainQueue).start(next: { sharedData in
+                let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.aveGramSettings]?.get(AveGramSettings.self) ?? AveGramSettings.defaultSettings
+                if settings.profileSound {
+                    AudioServicesPlaySystemSound(1057)
+                }
+            })
         }
     }
     
