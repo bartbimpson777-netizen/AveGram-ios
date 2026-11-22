@@ -8,6 +8,7 @@ import PresentationDataUtils
 import TelegramStringFormatting
 import BalanceNeededScreen
 import GiftSetupScreen
+import TelegramUIPreferences
 
 public func buyStarGiftImpl(
     context: AccountContext,
@@ -149,6 +150,59 @@ public func buyStarGiftImpl(
             })
         }
         
+        if AveGramRuntime.fakeGifts, recipientPeerId == context.account.peerId {
+            // AveGram: buying a gift for yourself is local only and spends the virtual balances.
+            updateProgress(true)
+            let _ = (context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.aveGramSettings])
+            |> take(1)
+            |> deliverOnMainQueue).start(next: { sharedData in
+                let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.aveGramSettings]?.get(AveGramSettings.self) ?? AveGramSettings.defaultSettings
+                let price = finalPrice.amount.value
+
+                var insufficient = false
+                switch finalPrice.currency {
+                case .stars:
+                    insufficient = settings.fakeStars && settings.fakeStarsBalance < price
+                case .ton:
+                    insufficient = settings.fakeTon && settings.fakeTonBalance < price
+                }
+                if insufficient {
+                    updateProgress(false)
+                    beforeCompletion()
+                    HapticFeedback().error()
+                    if let controller = getController() {
+                        let alertController = textAlertController(context: context, title: nil, text: "Недостаточно виртуальных средств. Увеличьте баланс в настройках AveGram.", actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})], parseMarkdown: true)
+                        controller.present(alertController, in: .window(.root))
+                    }
+                    return
+                }
+
+                let currency = finalPrice.currency
+                let _ = updateAveGramSettingsInteractively(accountManager: context.sharedContext.accountManager, { settings in
+                    var settings = settings
+                    switch currency {
+                    case .stars:
+                        if settings.fakeStars {
+                            settings.fakeStarsBalance = max(0, settings.fakeStarsBalance - price)
+                        }
+                    case .ton:
+                        if settings.fakeTon {
+                            settings.fakeTonBalance = max(0, settings.fakeTonBalance - price)
+                        }
+                    }
+                    return settings
+                }).start()
+
+                AveGramLocalGifts.shared.add(gift: .unique(uniqueGift), convertStars: nil)
+
+                HapticFeedback().success()
+                updateProgress(false)
+                beforeCompletion()
+                completion()
+            })
+            return
+        }
+
         if finalPrice.currency == .stars, let starsContext = context.starsContext, let starsState = context.starsContext?.currentState, starsState.balance < finalPrice.amount {
             let _ = (starsTopUpOptions
              |> filter { $0 != nil }
