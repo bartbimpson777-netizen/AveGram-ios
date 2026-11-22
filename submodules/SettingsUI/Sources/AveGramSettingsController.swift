@@ -9,6 +9,7 @@ import ItemListUI
 import PresentationDataUtils
 import AccountContext
 import PromptUI
+import AlertUI
 
 private enum AveGramToggle: Int32 {
     case saveDeletedMessages = 0
@@ -104,6 +105,12 @@ private enum AveGramAmount {
     case profileColor
 }
 
+private enum AveGramAction {
+    case upgrade
+    case craft
+    case clearGifts
+}
+
 private enum AveGramSection: Int32 {
     case messages
     case premium
@@ -113,10 +120,12 @@ private enum AveGramSection: Int32 {
 private final class AveGramSettingsControllerArguments {
     let updateToggle: (AveGramToggle, Bool) -> Void
     let editAmount: (AveGramAmount) -> Void
+    let runAction: (AveGramAction) -> Void
 
-    init(updateToggle: @escaping (AveGramToggle, Bool) -> Void, editAmount: @escaping (AveGramAmount) -> Void) {
+    init(updateToggle: @escaping (AveGramToggle, Bool) -> Void, editAmount: @escaping (AveGramAmount) -> Void, runAction: @escaping (AveGramAction) -> Void) {
         self.updateToggle = updateToggle
         self.editAmount = editAmount
+        self.runAction = runAction
     }
 }
 
@@ -124,6 +133,7 @@ private enum AveGramSettingsEntry: ItemListNodeEntry {
     case messagesHeader
     case toggle(AveGramToggle, Bool)
     case amount(AveGramAmount, String)
+    case action(AveGramAction)
     case messagesFooter
 
     case premiumHeader
@@ -136,6 +146,8 @@ private enum AveGramSettingsEntry: ItemListNodeEntry {
         switch self {
         case .messagesHeader, .messagesFooter:
             return AveGramSection.messages.rawValue
+        case .action:
+            return AveGramSection.premium.rawValue
         case let .amount(amount, _):
             if case .profileColor = amount {
                 return AveGramSection.profile.rawValue
@@ -173,6 +185,15 @@ private enum AveGramSettingsEntry: ItemListNodeEntry {
                 return 161
             case .profileColor:
                 return 261
+            }
+        case let .action(action):
+            switch action {
+            case .upgrade:
+                return 170
+            case .craft:
+                return 171
+            case .clearGifts:
+                return 172
             }
         case .premiumFooter:
             return 199
@@ -215,6 +236,19 @@ private enum AveGramSettingsEntry: ItemListNodeEntry {
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: toggle.title, value: value, sectionId: self.section, style: .blocks, updated: { value in
                 arguments.updateToggle(toggle, value)
             })
+        case let .action(action):
+            let title: String
+            switch action {
+            case .upgrade:
+                title = "Улучшить подарок до уникального"
+            case .craft:
+                title = "Крафт: объединить 3 уникальных подарка"
+            case .clearGifts:
+                title = "Удалить все локальные подарки"
+            }
+            return ItemListActionItem(presentationData: presentationData, systemStyle: .glass, title: title, kind: .generic, alignment: .natural, sectionId: self.section, style: .blocks, action: {
+                arguments.runAction(action)
+            })
         case let .amount(amount, label):
             let title: String
             switch amount {
@@ -250,6 +284,9 @@ private func aveGramSettingsEntries(settings: AveGramSettings) -> [AveGramSettin
     entries.append(.toggle(.fakeGifts, settings.fakeGifts))
     entries.append(.amount(.stars, String(settings.fakeStarsBalance)))
     entries.append(.amount(.ton, formatTonLabel(settings.fakeTonBalance)))
+    entries.append(.action(.upgrade))
+    entries.append(.action(.craft))
+    entries.append(.action(.clearGifts))
     entries.append(.premiumFooter)
 
     entries.append(.profileHeader)
@@ -337,6 +374,28 @@ public func aveGramSettingsController(context: AccountContext) -> ViewController
                         }).start()
                     }
                 ))
+            }
+        },
+        runAction: { action in
+            let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+            let showMessage: (String) -> Void = { text in
+                presentImpl?(textAlertController(context: context, title: nil, text: text, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})], parseMarkdown: true))
+            }
+            switch action {
+            case .upgrade:
+                let _ = (AveGramLocalGifts.shared.upgradeNewestGeneric(engine: context.engine, ownerPeerId: context.account.peerId)
+                |> deliverOnMainQueue).start(next: { success in
+                    showMessage(success ? "Подарок улучшен до уникального." : "Нет обычных локальных подарков, либо Telegram не дал варианты улучшения для этого подарка.")
+                })
+            case .craft:
+                if AveGramLocalGifts.shared.craft(count: 3, ownerPeerId: context.account.peerId) {
+                    showMessage("Три уникальных подарка объединены в один.")
+                } else {
+                    showMessage("Для крафта нужно минимум 3 уникальных локальных подарка (купите или улучшите их).")
+                }
+            case .clearGifts:
+                AveGramLocalGifts.shared.removeAll()
+                showMessage("Локальные подарки удалены.")
             }
         }
     )
