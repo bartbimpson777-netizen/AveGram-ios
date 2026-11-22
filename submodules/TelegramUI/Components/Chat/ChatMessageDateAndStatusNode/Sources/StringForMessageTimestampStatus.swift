@@ -195,6 +195,10 @@ public func stringForMessageTimestampStatus(
         dateText = strings.Message_RepeatAt(repeatString, dateText).string
     }
     
+    if message.isRemotelyDeleted {
+        dateText = "удалено · " + dateText
+    }
+
     if message.id.namespace == Namespaces.Message.ScheduledCloud, let _ = message.pendingProcessingAttribute {
         return strings.Message_Approximate(dateText).string
     }

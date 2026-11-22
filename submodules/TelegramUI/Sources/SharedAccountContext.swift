@@ -311,7 +311,8 @@ public final class SharedAccountContextImpl: SharedAccountContext {
         return self.immediateExperimentalUISettingsValue.with { $0 }
     }
     private var experimentalUISettingsDisposable: Disposable?
-    
+    private var aveGramSettingsDisposable: Disposable?
+
     public var presentGlobalController: (ViewController, Any?) -> Void = { _, _ in }
     public var presentCrossfadeController: () -> Void = {}
     
@@ -507,6 +508,12 @@ public final class SharedAccountContextImpl: SharedAccountContext {
             }
         }))
         
+        self.aveGramSettingsDisposable = (self.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.aveGramSettings])
+        |> deliverOnMainQueue).start(next: { sharedData in
+            let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.aveGramSettings]?.get(AveGramSettings.self) ?? AveGramSettings.defaultSettings
+            AveGramRuntime.saveDeletedMessages = settings.saveDeletedMessages
+        })
+
         self.inAppNotificationSettingsDisposable = (self.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.inAppNotificationSettings])
         |> deliverOnMainQueue).start(next: { [weak self] sharedData in
             if let strongSelf = self {
