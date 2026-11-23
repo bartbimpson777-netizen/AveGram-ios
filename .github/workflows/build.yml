@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: xcode-27
+    runs-on: macos-26
     timeout-minutes: 360
 
     steps:
@@ -24,11 +24,13 @@ jobs:
             exit 1
           fi
 
-      - name: Select newest installed Xcode 27
+      - name: Select newest installed Xcode
         run: |
-          XCODE=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -n1)
+          df -h / | tail -1
+          sysctl -n hw.memsize
+          XCODE=$(ls -d /Applications/Xcode_27*.app /Applications/Xcode_26*.app 2>/dev/null | grep -v "\.0\.app" | sort -V | tail -n1)
           if [ -z "$XCODE" ]; then
-            echo "::error::No Xcode 27 found on this runner"
+            echo "::error::No Xcode found on this runner"
             ls /Applications | grep -i xcode || true
             exit 1
           fi
