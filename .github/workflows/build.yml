@@ -67,6 +67,20 @@ jobs:
           sudo xcode-select -s "$XCODE/Contents/Developer"
           xcodebuild -version
 
+      - name: Ignore expired provisioning profiles
+        run: |
+          # The bundled fake profiles expired; the IPA is re-signed by Feather anyway.
+          F=build-system/bazel-rules/rules_apple/tools/plisttool/plisttool.py
+          python3 - "$F" <<'EOF'
+          import sys
+          p = sys.argv[1]
+          s = open(p).read()
+          old = "if expire and expire < datetime.datetime.now():"
+          assert old in s
+          open(p, "w").write(s.replace(old, "if False and expire and expire < datetime.datetime.now():"))
+          EOF
+          grep -n "if False and expire" "$F"
+
       - name: Write build configuration
         env:
           API_ID: ${{ secrets.API_ID }}
