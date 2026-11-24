@@ -10,6 +10,8 @@ swift_library(
     ]),
     copts = [
         "-warnings-as-errors",
+        # AveGram: Xcode 26.6's optimizer crashes (OSSACompleteLifetime) on ShareScreen.init.
+        "-Onone",
     ],
     deps = [
         "//submodules/AsyncDisplayKit",

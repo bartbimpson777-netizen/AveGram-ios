@@ -885,7 +885,7 @@ private func contactsPermissionWarning(context: AccountContext) -> Signal<Bool, 
 }
 
 /// AveGram: applies the locally chosen profile background colour to the own profile.
-private func aveGramStyledProfilePeer(_ peer: Peer?, accountPeerId: EnginePeer.Id) -> EnginePeer? {
+private func aveGramStyledProfilePeer(_ peer: EngineRawPeer?, accountPeerId: EnginePeer.Id) -> EnginePeer? {
     guard let peer else {
         return nil
     }
