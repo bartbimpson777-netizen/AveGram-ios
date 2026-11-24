@@ -691,9 +691,15 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             networkEngineFactory: RustNetworkEngineFactory()
         )
         
-        guard let appGroupUrl = maybeAppGroupUrl else {
-            self.mainWindow?.presentNative(UIAlertController(title: nil, message: "Error 2", preferredStyle: .alert))
-            return true
+        // AveGram: a sideloaded build may be signed without the app group (a wildcard profile cannot carry one).
+        // Fall back to a folder inside the app's own container instead of stopping on "Error 2".
+        let appGroupUrl: URL
+        if let maybeAppGroupUrl {
+            appGroupUrl = maybeAppGroupUrl
+        } else {
+            let fallbackUrl = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("avegram-group", isDirectory: true)
+            try? FileManager.default.createDirectory(at: fallbackUrl, withIntermediateDirectories: true, attributes: nil)
+            appGroupUrl = fallbackUrl
         }
         
         var isDebugConfiguration = false
