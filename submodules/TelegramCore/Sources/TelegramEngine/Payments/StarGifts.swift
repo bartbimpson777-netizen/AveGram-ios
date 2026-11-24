@@ -3157,7 +3157,7 @@ public final class ProfileGiftsContext {
             return baseSignal
         }
         // AveGram: locally "bought" gifts are shown on the own profile only.
-        return combineLatest(queue: self.queue, baseSignal, AveGramLocalGifts.shared.updated |> startWith(Void()))
+        return combineLatest(queue: self.queue, baseSignal, (Signal<Void, NoError>.single(Void()) |> then(AveGramLocalGifts.shared.updated)))
         |> map { state, _ -> ProfileGiftsContext.State in
             guard AveGramRuntime.fakeGifts else {
                 return state

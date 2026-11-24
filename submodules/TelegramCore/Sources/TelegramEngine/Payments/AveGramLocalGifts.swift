@@ -8,7 +8,7 @@ public final class AveGramLocalGifts {
 
     private static let storageKey = "avegram.localGifts.v1"
 
-    private typealias Entry = ProfileGiftsContext.State.StarGift
+    typealias Entry = ProfileGiftsContext.State.StarGift
 
     private let gifts = Atomic<[Entry]>(value: [])
     private let loaded = Atomic<Bool>(value: false)
