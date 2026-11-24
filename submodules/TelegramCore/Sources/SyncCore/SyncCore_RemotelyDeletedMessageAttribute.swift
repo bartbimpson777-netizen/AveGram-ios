@@ -46,6 +46,29 @@ public extension EngineMessage {
 /// Process-wide switches for the AveGram mod. They are plain atomics so TelegramCore does not
 /// depend on the UI preferences module; the app keeps them in sync with the stored settings.
 public enum AveGramRuntime {
+    private static let ghostModeValue = Atomic<Bool>(value: false)
+    private static let invisibleTypingValue = Atomic<Bool>(value: false)
+
+    /// Read receipts are not sent to Telegram (messages are marked read on this device only).
+    public static var ghostMode: Bool {
+        get {
+            return ghostModeValue.with { $0 }
+        }
+        set {
+            let _ = ghostModeValue.modify { _ in newValue }
+        }
+    }
+
+    /// "typing…", "recording a voice message…" and similar statuses are not sent.
+    public static var invisibleTyping: Bool {
+        get {
+            return invisibleTypingValue.with { $0 }
+        }
+        set {
+            let _ = invisibleTypingValue.modify { _ in newValue }
+        }
+    }
+
     private static let saveDeletedMessagesValue = Atomic<Bool>(value: false)
 
     private static let modBadgesValue = Atomic<Bool>(value: false)

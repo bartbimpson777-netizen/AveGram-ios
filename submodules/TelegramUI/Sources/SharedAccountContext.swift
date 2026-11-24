@@ -513,6 +513,8 @@ public final class SharedAccountContextImpl: SharedAccountContext {
             let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.aveGramSettings]?.get(AveGramSettings.self) ?? AveGramSettings.defaultSettings
             AveGramRuntime.saveDeletedMessages = settings.saveDeletedMessages
             AveGramRuntime.modBadges = settings.modBadges
+            AveGramRuntime.ghostMode = settings.ghostMode
+            AveGramRuntime.invisibleTyping = settings.invisibleTyping
             AveGramRuntime.fakeGifts = settings.fakeGifts
             AveGramRuntime.profileColorIndex = settings.profileBackground ? settings.profileColorIndex : -1
         })

@@ -20,6 +20,8 @@ public struct AveGramSettings: Codable, Equatable {
     public var animatedAvatars: Bool
     public var profileSound: Bool
     public var modBadges: Bool
+    public var ghostMode: Bool
+    public var invisibleTyping: Bool
 
     public static var defaultSettings: AveGramSettings {
         return AveGramSettings(
@@ -35,7 +37,9 @@ public struct AveGramSettings: Codable, Equatable {
             profileEffects: false,
             animatedAvatars: false,
             profileSound: false,
-            modBadges: false
+            modBadges: false,
+            ghostMode: false,
+            invisibleTyping: false
         )
     }
 
@@ -52,7 +56,9 @@ public struct AveGramSettings: Codable, Equatable {
         profileEffects: Bool,
         animatedAvatars: Bool,
         profileSound: Bool,
-        modBadges: Bool
+        modBadges: Bool,
+        ghostMode: Bool,
+        invisibleTyping: Bool
     ) {
         self.saveDeletedMessages = saveDeletedMessages
         self.localPremium = localPremium
@@ -67,6 +73,8 @@ public struct AveGramSettings: Codable, Equatable {
         self.animatedAvatars = animatedAvatars
         self.profileSound = profileSound
         self.modBadges = modBadges
+        self.ghostMode = ghostMode
+        self.invisibleTyping = invisibleTyping
     }
 
     public init(from decoder: Decoder) throws {
@@ -86,6 +94,8 @@ public struct AveGramSettings: Codable, Equatable {
         self.animatedAvatars = try container.decodeIfPresent(Bool.self, forKey: "animatedAvatars") ?? defaults.animatedAvatars
         self.profileSound = try container.decodeIfPresent(Bool.self, forKey: "profileSound") ?? defaults.profileSound
         self.modBadges = try container.decodeIfPresent(Bool.self, forKey: "modBadges") ?? defaults.modBadges
+        self.ghostMode = try container.decodeIfPresent(Bool.self, forKey: "ghostMode") ?? defaults.ghostMode
+        self.invisibleTyping = try container.decodeIfPresent(Bool.self, forKey: "invisibleTyping") ?? defaults.invisibleTyping
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -104,6 +114,8 @@ public struct AveGramSettings: Codable, Equatable {
         try container.encode(self.animatedAvatars, forKey: "animatedAvatars")
         try container.encode(self.profileSound, forKey: "profileSound")
         try container.encode(self.modBadges, forKey: "modBadges")
+        try container.encode(self.ghostMode, forKey: "ghostMode")
+        try container.encode(self.invisibleTyping, forKey: "invisibleTyping")
     }
 }
 

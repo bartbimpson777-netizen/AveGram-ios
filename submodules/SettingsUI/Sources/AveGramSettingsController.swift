@@ -22,6 +22,8 @@ private enum AveGramToggle: Int32 {
     case animatedAvatars
     case profileSound
     case modBadges
+    case ghostMode
+    case invisibleTyping
 
     func value(in settings: AveGramSettings) -> Bool {
         switch self {
@@ -45,6 +47,10 @@ private enum AveGramToggle: Int32 {
             return settings.profileSound
         case .modBadges:
             return settings.modBadges
+        case .ghostMode:
+            return settings.ghostMode
+        case .invisibleTyping:
+            return settings.invisibleTyping
         }
     }
 
@@ -70,6 +76,10 @@ private enum AveGramToggle: Int32 {
             settings.profileSound = value
         case .modBadges:
             settings.modBadges = value
+        case .ghostMode:
+            settings.ghostMode = value
+        case .invisibleTyping:
+            settings.invisibleTyping = value
         }
     }
 
@@ -95,6 +105,10 @@ private enum AveGramToggle: Int32 {
             return "Звук при открытии профиля"
         case .modBadges:
             return "Бейджи AveGram"
+        case .ghostMode:
+            return "Режим призрака (не отмечать прочитанным)"
+        case .invisibleTyping:
+            return "Скрывать «печатает» и запись"
         }
     }
 }
@@ -159,7 +173,7 @@ private enum AveGramSettingsEntry: ItemListNodeEntry {
             return AveGramSection.profile.rawValue
         case let .toggle(toggle, _):
             switch toggle {
-            case .saveDeletedMessages:
+            case .saveDeletedMessages, .ghostMode, .invisibleTyping:
                 return AveGramSection.messages.rawValue
             case .localPremium, .fakeStars, .fakeTon, .fakeGifts:
                 return AveGramSection.premium.rawValue
@@ -205,6 +219,10 @@ private enum AveGramSettingsEntry: ItemListNodeEntry {
             switch toggle {
             case .saveDeletedMessages:
                 return 1
+            case .ghostMode:
+                return 2
+            case .invisibleTyping:
+                return 3
             case .localPremium, .fakeStars, .fakeTon, .fakeGifts:
                 return 101 + toggle.rawValue
             case .profileBackground, .profileEffects, .animatedAvatars, .profileSound, .modBadges:
@@ -275,6 +293,8 @@ private func aveGramSettingsEntries(settings: AveGramSettings) -> [AveGramSettin
 
     entries.append(.messagesHeader)
     entries.append(.toggle(.saveDeletedMessages, settings.saveDeletedMessages))
+    entries.append(.toggle(.ghostMode, settings.ghostMode))
+    entries.append(.toggle(.invisibleTyping, settings.invisibleTyping))
     entries.append(.messagesFooter)
 
     entries.append(.premiumHeader)
